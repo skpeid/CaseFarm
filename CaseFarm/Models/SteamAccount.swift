@@ -17,4 +17,10 @@ struct SteamAccount: Identifiable, Codable {
     mutating func setProfileImage(_ image: UIImage) {
         profileImageData = image.jpegData(compressionQuality: 0.8)
     }
+    
+    func getProfileImage() -> UIImage? {
+        guard let data = profileImageData else { return nil }
+        return UIImage(data: data)
+    }
+
 }
