@@ -1,12 +1,9 @@
 import UIKit
 
-class AccountsViewController: UIViewController {
+class AccountsViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
 
     private let tableView = UITableView()
-
-    private var accounts: [SteamAccount] {
-        return DataManager.shared.accounts
-    }
+    private var accounts: [SteamAccount] = DataManager.shared.accounts
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -19,6 +16,7 @@ class AccountsViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        accounts = DataManager.shared.accounts
         tableView.reloadData()
     }
 
@@ -31,17 +29,17 @@ class AccountsViewController: UIViewController {
     }
 
     private func setupTableView() {
-        view.addSubview(tableView)
         tableView.translatesAutoresizingMaskIntoConstraints = false
+        tableView.register(AccountCell.self, forCellReuseIdentifier: "AccountCell")
         tableView.dataSource = self
         tableView.delegate = self
-        tableView.register(AccountCell.self, forCellReuseIdentifier: "AccountCell")
+        view.addSubview(tableView)
 
         NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            tableView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            tableView.topAnchor.constraint(equalTo: view.topAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
     }
 
@@ -49,23 +47,48 @@ class AccountsViewController: UIViewController {
         let vc = AddAccountViewController()
         navigationController?.pushViewController(vc, animated: true)
     }
-}
-
-extension AccountsViewController: UITableViewDataSource, UITableViewDelegate {
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return accounts.count
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let account = accounts[indexPath.row]
         let cell = tableView.dequeueReusableCell(withIdentifier: "AccountCell", for: indexPath) as! AccountCell
-        cell.configure(with: account)
+        cell.configure(with: accounts[indexPath.row])
         return cell
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        // (Optional) Add AccountDetailViewController later
-        tableView.deselectRow(at: indexPath, animated: true)
+        let account = accounts[indexPath.row]
+        let vc = InventoryViewController(accountName: account.name, inventory: account.inventory)
+        let nav = UINavigationController(rootViewController: vc)
+
+        if let sheet = nav.sheetPresentationController {
+            sheet.detents = [.medium(), .large()]
+        }
+
+        present(nav, animated: true)
     }
-}
+
+    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        let account = accounts[indexPath.row]
+        let deleteAction = UIContextualAction(style: .destructive, title: "Delete") { _, _, completion in
+            let alert = UIAlertController(
+                title: "Delete Account",
+                message: "Are you sure you want to delete \"\(account.name)\"?",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+            alert.addAction(UIAlertAction(title: "Delete", style: .destructive, handler: { _ in
+                DataManager.shared.deleteAccount(id: account.id)
+                self.accounts.remove(at: indexPath.row)
+                tableView.deleteRows(at: [indexPath], with: .fade)
+            }))
+
+            self.present(alert, animated: true)
+            completion(false)
+        }
+
+        return UISwipeActionsConfiguration(actions: [deleteAction])
+    }
+} 

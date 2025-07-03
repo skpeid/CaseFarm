@@ -1,8 +1,10 @@
-import Foundation
+import UIKit
 
 class DataManager {
     static let shared = DataManager()
-    private init() {}
+    private init() {
+        loadDummyDataIfNeeded()
+    }
 
     var accounts: [SteamAccount] = []
 
@@ -35,28 +37,34 @@ class DataManager {
             accounts = saved
         }
     }
-}
+    
+    func loadDummyDataIfNeeded() {
+        guard accounts.isEmpty else { return }
 
-// dummy data
-extension DataManager {
-    static func generateDummyAccounts() -> [SteamAccount] {
-        return [
-            SteamAccount(
+        let dummyAccounts: [SteamAccount] = (1...5).map { i in
+            var account = SteamAccount(
                 id: UUID(),
-                name: "Main",
-                username: "mainacc",
+                name: "Dummy \(i)",
+                username: "dummy\(i)",
                 profileImageData: nil,
-                inventory: [.recoil, .kilowatt],
-                drops: [.recoil]
-            ),
-            SteamAccount(
-                id: UUID(),
-                name: "Smurf 1",
-                username: "smurf1",
-                profileImageData: nil,
-                inventory: [],
+                inventory: generateRandomCases(),
                 drops: []
             )
-        ]
+            // Optional: assign a profile icon from system
+            account.setProfileImage(UIImage(systemName: "person.circle")!)
+            return account
+        }
+
+        for account in dummyAccounts {
+            addAccount(account)
+        }
     }
+    
+    private func generateRandomCases() -> [CaseItem] {
+        let all = CaseItem.allCases.shuffled()
+        let count = Int.random(in: 2...6)
+        return Array(all.prefix(count))
+    }
+
+
 }
