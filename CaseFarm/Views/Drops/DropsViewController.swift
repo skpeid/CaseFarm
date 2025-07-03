@@ -1,8 +1,9 @@
-//
-//  DropsViewController.swift
-//  CaseFarm
-//
-//  Created by Kuanysh Auyelgazy on 03.07.2025.
-//
+import UIKit
 
-import Foundation
+class DropsViewController: UIViewController {
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        title = "Case Drops"
+        view.backgroundColor = .systemBackground
+    }
+}

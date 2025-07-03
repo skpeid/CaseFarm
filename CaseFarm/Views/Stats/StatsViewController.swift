@@ -1,8 +1,9 @@
-//
-//  StatsViewController.swift
-//  CaseFarm
-//
-//  Created by Kuanysh Auyelgazy on 03.07.2025.
-//
+import UIKit
 
-import Foundation
+class StatsViewController: UIViewController {
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        title = "Statistics"
+        view.backgroundColor = .systemBackground
+    }
+}
