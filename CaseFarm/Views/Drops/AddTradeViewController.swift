@@ -6,119 +6,140 @@ class AddTradeViewController: UIViewController {
     private var toAccount: SteamAccount?
     private var selectedCaseItem: CaseItem?
 
-    private let fromPicker = UIPickerView()
-    private let toPicker = UIPickerView()
-    private let casePicker = UIPickerView()
-    private let saveButton = UIButton(type: .system)
+    private let fromView = AccountSelectionView()
+    private let toView = AccountSelectionView()
+
+    private let arrowLabel: UILabel = {
+        let label = UILabel()
+        label.text = "→"
+        label.font = .systemFont(ofSize: 28, weight: .semibold)
+        label.textAlignment = .center
+        return label
+    }()
+
+    private let casesCollectionView: UICollectionView = {
+        let layout = UICollectionViewFlowLayout()
+        layout.itemSize = CGSize(width: 100, height: 120)
+        layout.sectionInset = UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
+        layout.minimumInteritemSpacing = 12
+        layout.minimumLineSpacing = 12
+        return UICollectionView(frame: .zero, collectionViewLayout: layout)
+    }()
 
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "New Trade"
         view.backgroundColor = .systemBackground
+        setupNav()
         setupViews()
     }
 
+    private func setupNav() {
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Save", style: .done, target: self, action: #selector(saveTrade))
+    }
+
     private func setupViews() {
-        fromPicker.dataSource = self
-        fromPicker.delegate = self
-        toPicker.dataSource = self
-        toPicker.delegate = self
-        casePicker.dataSource = self
-        casePicker.delegate = self
+        fromAccount = DataManager.shared.accounts.first
+        toAccount = DataManager.shared.accounts.count > 1 ? DataManager.shared.accounts[1] : nil
+        selectedCaseItem = CaseItem.allCases.first
 
-        fromPicker.translatesAutoresizingMaskIntoConstraints = false
-        toPicker.translatesAutoresizingMaskIntoConstraints = false
-        casePicker.translatesAutoresizingMaskIntoConstraints = false
-        saveButton.translatesAutoresizingMaskIntoConstraints = false
+        fromView.translatesAutoresizingMaskIntoConstraints = false
+        toView.translatesAutoresizingMaskIntoConstraints = false
+        arrowLabel.translatesAutoresizingMaskIntoConstraints = false
+        casesCollectionView.translatesAutoresizingMaskIntoConstraints = false
 
-        saveButton.setTitle("Save Trade", for: .normal)
-        saveButton.addTarget(self, action: #selector(saveTrade), for: .touchUpInside)
+        fromView.configure(with: fromAccount)
+        toView.configure(with: toAccount)
 
-        let label1 = UILabel()
-        label1.text = "From Account"
-        let label2 = UILabel()
-        label2.text = "To Account"
-        let label3 = UILabel()
-        label3.text = "Case"
+        fromView.tag = 1
+        toView.tag = 2
+        fromView.isUserInteractionEnabled = true
+        toView.isUserInteractionEnabled = true
 
-        let stack = UIStackView(arrangedSubviews: [
-            label1, fromPicker,
-            label2, toPicker,
-            label3, casePicker,
-            saveButton
-        ])
-        stack.axis = .vertical
-        stack.spacing = 16
-        stack.alignment = .center
-        stack.translatesAutoresizingMaskIntoConstraints = false
+        let tapFrom = UITapGestureRecognizer(target: self, action: #selector(selectAccount(_:)))
+        let tapTo = UITapGestureRecognizer(target: self, action: #selector(selectAccount(_:)))
+        fromView.addGestureRecognizer(tapFrom)
+        toView.addGestureRecognizer(tapTo)
 
-        view.addSubview(stack)
+        casesCollectionView.dataSource = self
+        casesCollectionView.delegate = self
+        casesCollectionView.register(CaseCell.self, forCellWithReuseIdentifier: "CaseCell")
+
+        view.addSubview(casesCollectionView)
+        view.addSubview(fromView)
+        view.addSubview(arrowLabel)
+        view.addSubview(toView)
 
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            stack.centerYAnchor.constraint(equalTo: view.centerYAnchor)
-        ])
+            casesCollectionView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            casesCollectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            casesCollectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            casesCollectionView.heightAnchor.constraint(equalToConstant: 250),
 
-        if let first = DataManager.shared.accounts.first {
-            fromAccount = first
-            toAccount = first
+            fromView.topAnchor.constraint(equalTo: casesCollectionView.bottomAnchor, constant: 20),
+            fromView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            fromView.widthAnchor.constraint(equalToConstant: 100),
+
+            arrowLabel.centerYAnchor.constraint(equalTo: fromView.centerYAnchor),
+            arrowLabel.leadingAnchor.constraint(equalTo: fromView.trailingAnchor, constant: 12),
+            arrowLabel.trailingAnchor.constraint(equalTo: toView.leadingAnchor, constant: -12),
+
+            toView.topAnchor.constraint(equalTo: fromView.topAnchor),
+            toView.widthAnchor.constraint(equalToConstant: 100),
+            toView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+
+            toView.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor, constant: -20)
+        ])
+    }
+
+    @objc private func selectAccount(_ sender: UITapGestureRecognizer) {
+        guard let tag = sender.view?.tag else { return }
+
+        let alert = UIAlertController(title: "Choose Account", message: nil, preferredStyle: .actionSheet)
+        for account in DataManager.shared.accounts {
+            alert.addAction(UIAlertAction(title: account.name, style: .default, handler: { _ in
+                if tag == 1 {
+                    self.fromAccount = account
+                    self.fromView.configure(with: account)
+                } else {
+                    self.toAccount = account
+                    self.toView.configure(with: account)
+                }
+            }))
         }
-        selectedCaseItem = CaseItem.allCases.first
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        present(alert, animated: true)
     }
 
     @objc private func saveTrade() {
-        guard let from = fromAccount, let to = toAccount, let item = selectedCaseItem else { return }
-        guard from.id != to.id else {
-            showAlert(title: "Invalid", message: "Cannot trade to same account.")
-            return
-        }
+        guard let from = fromAccount, let to = toAccount, let caseItem = selectedCaseItem, from.id != to.id else { return }
 
         let trade = CaseTrade(
             id: UUID(),
             fromAccountID: from.id,
             toAccountID: to.id,
-            caseItem: item,
+            caseItem: caseItem,
             date: Date()
         )
-
         DataManager.shared.addTrade(trade)
         navigationController?.popViewController(animated: true)
     }
-
-    private func showAlert(title: String, message: String) {
-        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
-    }
 }
 
-extension AddTradeViewController: UIPickerViewDataSource, UIPickerViewDelegate {
-    func numberOfComponents(in pickerView: UIPickerView) -> Int { return 1 }
-
-    func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
-        if pickerView == fromPicker || pickerView == toPicker {
-            return DataManager.shared.accounts.count
-        } else {
-            return CaseItem.allCases.count
-        }
+extension AddTradeViewController: UICollectionViewDataSource, UICollectionViewDelegate {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return CaseItem.allCases.count
     }
 
-    func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
-        if pickerView == fromPicker || pickerView == toPicker {
-            return DataManager.shared.accounts[row].name
-        } else {
-            return CaseItem.allCases[row].displayName
-        }
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let caseItem = CaseItem.allCases[indexPath.item]
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CaseCell", for: indexPath) as! CaseCell
+        cell.configure(with: caseItem, selected: caseItem == selectedCaseItem)
+        return cell
     }
 
-    func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
-        if pickerView == fromPicker {
-            fromAccount = DataManager.shared.accounts[row]
-        } else if pickerView == toPicker {
-            toAccount = DataManager.shared.accounts[row]
-        } else {
-            selectedCaseItem = CaseItem.allCases[row]
-        }
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        selectedCaseItem = CaseItem.allCases[indexPath.item]
+        collectionView.reloadData()
     }
 }
